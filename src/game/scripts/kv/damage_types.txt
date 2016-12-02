@@ -1,0 +1,12 @@
+ice
+fire
+dark
+light
+water
+earth
+electric
+poison
+plants
+undead
+arcane - not specific magic
+physic
