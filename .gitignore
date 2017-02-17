@@ -28,6 +28,10 @@ local.properties
 # PDT-specific
 .buildpath
 
+# Compiled Assets
+.vmat_c
+.vpcf_c
+
 
 #################
 ## Visual Studio
