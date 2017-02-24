@@ -423,6 +423,9 @@ function Pregame:loadDefaultSettings()
     -- Default, we don't ban all invisiblity
     self:setOption('lodOptionBanningBanInvis', 0, true)
 
+    -- Creep Wars default mode is off 
+    self:setOption('lodOptionCreepWars', 0, true)
+  
     -- Starting level is lvl 1
     self:setOption('lodOptionGameSpeedStartingLevel', 1, true)
 
@@ -1112,7 +1115,7 @@ function Pregame:actualSpawnPlayer(playerID, callback)
                     -- Create the hero and validate it
                     --print(heroName)
                     if PlayerResource:GetSelectedHeroEntity(playerID) ~= nil then
-                        UTIL_Remove(PlayerResource:GetSelectedHeroEntity(playerID))
+                        -- UTIL_Remove(PlayerResource:GetSelectedHeroEntity(playerID))
                         hero = PlayerResource:ReplaceHeroWith(playerID,heroName,625 + OptionManager:GetOption('bonusGold'),0)
                     else
                         hero = CreateHeroForPlayer(heroName,player) 
@@ -1274,6 +1277,8 @@ function Pregame:networkHeroes()
     end
 
     self.invisSkills = flags.invis
+
+    self.dotaCustom = flags.dota_custom
 
     -- Store the inverse flags list
     self.flagsInverse = flagsInverse
@@ -1807,6 +1812,7 @@ function Pregame:loadTrollCombos()
     self.noHero = tempBanList.noHero
     self.SuperOP = tempBanList.SuperOP
     self.doNotRandom = tempBanList.doNotRandom
+    self.creepWars = tempBanlist.creepWars
 
     -- All SUPER OP skills should be added to the OP ban list
     --for skillName,_ in pairs(self.lodBanList) do
@@ -2145,6 +2151,11 @@ function Pregame:initOptionSelector()
         -- Common ban all invis
         lodOptionBanningBanInvis = function(value)
             return value == 0 or value == 1 or value == 2 
+        end,
+    
+        -- Common creep wars bans
+        lodOptionCreepWars = function(value)
+            return value == 0 or value == 1 
         end,
 
         -- Common -- Disable Perks
@@ -2510,16 +2521,15 @@ function Pregame:initOptionSelector()
             -- When the player activates this potion, they have a chance to hear a meme sound. Becomes more unlikely the more they hear.
             if value == 1 then
 
-                -- COMMENTED OUT BELOW UNTIL CAN FIX
-                --local shouldPlay = RandomInt(1, self.chanceToHearMeme)
-                --if shouldPlay == 1 then
-                --    EmitGlobalSound("Memes.RandomSample")
-                --    self.chanceToHearMeme = self.chanceToHearMeme + 1
-                --end
+                local shouldPlay = RandomInt(1, self.chanceToHearMeme)
+                if shouldPlay == 1 then
+                    EmitGlobalSound("Memes.RandomSample")
+                    self.chanceToHearMeme = self.chanceToHearMeme + 1
+                end
                 
             end
-            -- MADE BOTH ZERO BELOW UNTIL WE CAN FIX
-            return value == 0 or value == 0
+
+            return value == 0 or value == 1
         end, 
 
         
@@ -3383,6 +3393,7 @@ function Pregame:processOptions()
         OptionManager:SetOption('darkMoon', this.optionStore['lodOptionDarkMoon'])
         OptionManager:SetOption('blackForest', this.optionStore['lodOptionBlackForest'])
         OptionManager:SetOption('banInvis', this.optionStore['lodOptionBanningBanInvis'])
+        OptionManager:SetOption('creepWars', this.optionStore['lodOptionCreepWars'])
 
         -- Enforce max level
         if OptionManager:GetOption('startingLevel') > OptionManager:GetOption('maxHeroLevel') then
@@ -3465,6 +3476,27 @@ function Pregame:processOptions()
             end
         end
 
+        -- Dota Modified Abilities
+        if not disableBanLists and this.optionStore['lodOptionAdvancedCustomSkills'] ~= 1 then
+            for abilityName,v in pairs(this.dotaCustom) do
+                this:banAbility(abilityName)
+            end
+        end
+
+        -- Banning invis skills
+        if not disableBanLists and this.optionStore['lodOptionBanningBanInvis'] > 0 then
+            for abilityName,v in pairs(this.invisSkills) do
+                this:banAbility(abilityName)
+            end
+        end
+
+        -- Banning skills not in the creep wars list
+        if not disableBanLists and this.optionStore['lodOptionCreepWars'] > 0 then
+            for abilityName,v not in pairs(this.creepWars) do
+                this:banAbility(abilityName)
+            end
+        end
+      
         -- Disabling Hero Perks
         if this.optionStore['lodOptionDisablePerks'] == 1 then
             this.perksDisabled = true
@@ -3630,6 +3662,7 @@ function Pregame:processOptions()
                     ['Advanced: Unique Skills'] = this.optionStore['lodOptionAdvancedUniqueSkills'],
                     ['Bans: Points Mode Banning'] = this.optionStore['lodOptionBanningBalanceMode'],
                     ['Bans: Block Invis Abilities'] = this.optionStore['lodOptionBanningBanInvis'],
+                    ['Bans: Creep Wars'] = this.optionStore['lodOptionCreepWars'],
                     ['Bans: Block OP Abilities'] = this.optionStore['lodOptionAdvancedOPAbilities'],
                     ['Bans: Block Troll Combos'] = this.optionStore['lodOptionBanningBlockTrollCombos'],
                     ['Bans: Disable Perks'] = this.optionStore['lodOptionDisablePerks'],
@@ -4382,7 +4415,7 @@ function Pregame:onPlayerSaveBans(eventSourceIndex, args)
     local count = (self.optionStore['lodOptionBanningMaxBans'] + self.optionStore['lodOptionBanningMaxHeroBans'])
 
     if count == 0 and self.optionStore['lodOptionBanningHostBanning'] > 0 then
-        count = 50
+        count = util:getTableLength(self.playerBansList[playerID]) 
     end
 
     local id = 0
@@ -4416,7 +4449,7 @@ function Pregame:onPlayerLoadBans(eventSourceIndex, args)
     local count = (self.optionStore['lodOptionBanningMaxBans'] + self.optionStore['lodOptionBanningMaxHeroBans'])
 
     if count == 0 and self.optionStore['lodOptionBanningHostBanning'] > 0 then
-        count = 50
+        count = 1000
     end
 
     for i=1,count do
@@ -4435,7 +4468,7 @@ function Pregame:onPlayerLoadBans(eventSourceIndex, args)
                 end
                 id = id + 1
             end
-            if i == count then
+            if not success or i == count then
                 CustomGameEventManager:Send_ServerToPlayer(player,"lodNotification",{text = "lodSuccessLoadBans", params = {['entries'] = id}})
             end
         end)
