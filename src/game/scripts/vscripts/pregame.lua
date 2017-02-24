@@ -423,6 +423,9 @@ function Pregame:loadDefaultSettings()
     -- Default, we don't ban all invisiblity
     self:setOption('lodOptionBanningBanInvis', 0, true)
 
+    -- Creep Wars default mode is off 
+    self:setOption('lodOptionCreepWars', 0, true)
+  
     -- Starting level is lvl 1
     self:setOption('lodOptionGameSpeedStartingLevel', 1, true)
 
@@ -1809,6 +1812,7 @@ function Pregame:loadTrollCombos()
     self.noHero = tempBanList.noHero
     self.SuperOP = tempBanList.SuperOP
     self.doNotRandom = tempBanList.doNotRandom
+    self.creepWars = tempBanlist.creepWars
 
     -- All SUPER OP skills should be added to the OP ban list
     --for skillName,_ in pairs(self.lodBanList) do
@@ -2147,6 +2151,11 @@ function Pregame:initOptionSelector()
         -- Common ban all invis
         lodOptionBanningBanInvis = function(value)
             return value == 0 or value == 1 or value == 2 
+        end,
+    
+        -- Common creep wars bans
+        lodOptionCreepWars = function(value)
+            return value == 0 or value == 1 
         end,
 
         -- Common -- Disable Perks
@@ -3384,6 +3393,7 @@ function Pregame:processOptions()
         OptionManager:SetOption('darkMoon', this.optionStore['lodOptionDarkMoon'])
         OptionManager:SetOption('blackForest', this.optionStore['lodOptionBlackForest'])
         OptionManager:SetOption('banInvis', this.optionStore['lodOptionBanningBanInvis'])
+        OptionManager:SetOption('creepWars', this.optionStore['lodOptionCreepWars'])
 
         -- Enforce max level
         if OptionManager:GetOption('startingLevel') > OptionManager:GetOption('maxHeroLevel') then
@@ -3480,6 +3490,13 @@ function Pregame:processOptions()
             end
         end
 
+        -- Banning skills not in the creep wars list
+        if not disableBanLists and this.optionStore['lodOptionCreepWars'] > 0 then
+            for abilityName,v not in pairs(this.creepWars) do
+                this:banAbility(abilityName)
+            end
+        end
+      
         -- Disabling Hero Perks
         if this.optionStore['lodOptionDisablePerks'] == 1 then
             this.perksDisabled = true
@@ -3645,6 +3662,7 @@ function Pregame:processOptions()
                     ['Advanced: Unique Skills'] = this.optionStore['lodOptionAdvancedUniqueSkills'],
                     ['Bans: Points Mode Banning'] = this.optionStore['lodOptionBanningBalanceMode'],
                     ['Bans: Block Invis Abilities'] = this.optionStore['lodOptionBanningBanInvis'],
+                    ['Bans: Creep Wars'] = this.optionStore['lodOptionCreepWars'],
                     ['Bans: Block OP Abilities'] = this.optionStore['lodOptionAdvancedOPAbilities'],
                     ['Bans: Block Troll Combos'] = this.optionStore['lodOptionBanningBlockTrollCombos'],
                     ['Bans: Disable Perks'] = this.optionStore['lodOptionDisablePerks'],
